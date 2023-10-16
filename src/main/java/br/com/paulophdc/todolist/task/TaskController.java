@@ -4,7 +4,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,12 +31,17 @@ public class TaskController {
 		taskModel.setIdUser((UUID) idUser);
 
 		var currentDate = LocalDateTime.now();// pega a data atual
-		if (currentDate.isAfter(taskModel.getStartAt()) || currentDate.isAfter(taskModel.getEndAt())){// compara com a data do 1°registro, nao permite inserir
+		if (currentDate.isAfter(taskModel.getStartAt()) || currentDate.isAfter(taskModel.getEndAt())) {// compara com a
+																										// data do
+																										// 1°registro,
+																										// nao permite
+																										// inserir
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)// para refazer no futuro a data de inicio tem que
 					.body("A Data/termino de inicio deve ser maior do que a data atual");// ser maior que a data atual
 		}
-		
-		if (taskModel.getStartAt().isAfter(taskModel.getEndAt())){ // valida se a data de inicio é menor que a data de fim
+
+		if (taskModel.getStartAt().isAfter(taskModel.getEndAt())) { // valida se a data de inicio é menor que a data de
+																	// fim
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
 					.body("A de inicio deve ser menor do que a data de termino");
 		}
@@ -45,22 +49,31 @@ public class TaskController {
 		var task = this.taskRepository.save(taskModel);
 		return ResponseEntity.status(HttpStatus.OK).body(task);
 	}
-	
+
 	@GetMapping("/")
-	public List<TaskModel> list(HttpServletRequest request){
+	public List<TaskModel> list(HttpServletRequest request) {
 		var idUser = request.getAttribute("idUser");
 		var tasks = this.taskRepository.findByIdUser((UUID) idUser);
 		return tasks;
 	}
-	
+
 	@PutMapping("/{id}")
-	public TaskModel update(@RequestBody TaskModel taskModel, HttpServletRequest request, @PathVariable UUID id) {
-		var idUser = request.getAttribute("idUser");
-		
+	public ResponseEntity update(@RequestBody TaskModel taskModel, HttpServletRequest request, @PathVariable UUID id) {
 		var task = this.taskRepository.findById(id).orElse(null);
-		
+
+		if(task ==null) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body("Tarefa nao encontrada!");
+		}
+		var idUser = request.getAttribute("idUser");
+
+		if (!task.getIdUser().equals(idUser)) {
+			return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+					.body("Usuario nao tem permissão para alterar esta tarefa");
+		}
+
 		Utils.copyNonNullProperties(taskModel, task);
-		
-		return this.taskRepository.save(task);
+		var taskUpdated = this.taskRepository.save(task);
+		return ResponseEntity.ok().body(taskUpdated);
 	}
 }
